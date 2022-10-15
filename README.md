@@ -1,1 +1,1 @@
-# go-freshdesk
+# go-freshdesk client
