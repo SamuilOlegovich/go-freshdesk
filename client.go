@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -102,7 +102,7 @@ type Request struct {
 }
 
 func (r *Request) Payload() string {
-	if body, err := ioutil.ReadAll(r.Body); err == nil {
+	if body, err := io.ReadAll(r.Body); err == nil {
 		var jsonBuffer bytes.Buffer
 		if err = json.Compact(&jsonBuffer, body); err == nil {
 			return jsonBuffer.String()
@@ -116,7 +116,7 @@ type Response struct {
 }
 
 func (r *Response) Payload() string {
-	if body, err := ioutil.ReadAll(r.Body); err == nil {
+	if body, err := io.ReadAll(r.Body); err == nil {
 		var jsonBuffer bytes.Buffer
 		if err = json.Compact(&jsonBuffer, body); err == nil {
 			return jsonBuffer.String()
