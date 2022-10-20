@@ -104,6 +104,7 @@ type ContactsClient interface {
 	View(id uint64) (*Contact, error)
 	ListAll() ([]*Contact, error)
 	Delete(id uint64) error
+	HardDelete(id uint64, force bool) error
 	Restore(id uint64) error
 	ListAllContactFields() ([]*ContactField, error)
 	SendInvite(id uint64) error
@@ -169,6 +170,31 @@ func (c *contactsClient) ListAll() ([]*Contact, error) {
 // Delete soft-deletes an existing contact
 func (c *contactsClient) Delete(id uint64) error {
 	req, err := c.client.newRequest(http.MethodDelete, fmt.Sprintf("contacts/%d", id), nil)
+	if err != nil {
+		return err
+	}
+
+	return c.client.do(req, nil, http.StatusOK)
+}
+
+// HardDelete deletes an existing contact permanently
+func (c *contactsClient) HardDelete(id uint64, force bool) error {
+	type params struct {
+		// Contact ID
+		ID uint64 `json:"id"`
+		// Send as true to force hard delete of a contact that is not already soft deleted
+		Force bool `json:"force"`
+	}
+
+	in, err := json.Marshal(&params{
+		ID:    id,
+		Force: force,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := c.client.newRequest(http.MethodDelete, fmt.Sprintf("contacts/%d/hard_delete", id), in)
 	if err != nil {
 		return err
 	}
