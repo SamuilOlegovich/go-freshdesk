@@ -104,8 +104,11 @@ type ContactsClient interface {
 	View(id uint64) (*Contact, error)
 	ListAll() ([]*Contact, error)
 	Delete(id uint64) error
+	HardDelete(id uint64, force bool) error
 	Restore(id uint64) error
-	ListAllContactFields() ([]*Contact, error)
+	ListAllContactFields() ([]*ContactField, error)
+	SendInvite(id uint64) error
+	Merge(primaryID uint64, secondaryIDs []uint64, attrs *Contact) error
 }
 
 type contactsClient struct {
@@ -164,9 +167,34 @@ func (c *contactsClient) ListAll() ([]*Contact, error) {
 	return res, err
 }
 
-// Delete deletes an existing contact
+// Delete soft-deletes an existing contact
 func (c *contactsClient) Delete(id uint64) error {
 	req, err := c.client.newRequest(http.MethodDelete, fmt.Sprintf("contacts/%d", id), nil)
+	if err != nil {
+		return err
+	}
+
+	return c.client.do(req, nil, http.StatusOK)
+}
+
+// HardDelete deletes an existing contact permanently
+func (c *contactsClient) HardDelete(id uint64, force bool) error {
+	type params struct {
+		// Contact ID
+		ID uint64 `json:"id"`
+		// Send as true to force hard delete of a contact that is not already soft deleted
+		Force bool `json:"force"`
+	}
+
+	in, err := json.Marshal(&params{
+		ID:    id,
+		Force: force,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := c.client.newRequest(http.MethodDelete, fmt.Sprintf("contacts/%d/hard_delete", id), in)
 	if err != nil {
 		return err
 	}
@@ -195,4 +223,42 @@ func (c *contactsClient) ListAllContactFields() ([]*ContactField, error) {
 	err = c.client.do(req, &res, http.StatusOK)
 
 	return res, err
+}
+
+// SendInvite used to send an activation email to an existing contact for email verification
+func (c *contactsClient) SendInvite(id uint64) error {
+	req, err := c.client.newRequest(http.MethodPost, fmt.Sprintf("contacts/%d/send_invite", id), nil)
+	if err != nil {
+		return err
+	}
+
+	return c.client.do(req, nil, http.StatusNoContent)
+}
+
+// Merge used to merge two or more duplicate contacts together.
+func (c *contactsClient) Merge(primaryID uint64, secondaryIDs []uint64, attrs *Contact) error {
+	type params struct {
+		// ID of the primary contact
+		PrimaryContactID uint64 `json:"primary_contact_id"`
+		// IDs of the secondary contacts
+		SecondaryContactIDs []uint64 `json:"secondary_contact_ids"`
+		// Contains attributes that need to be updated in the primary contact during merge (optional)
+		Contact *Contact `json:"contact,omitempty"`
+	}
+
+	in, err := json.Marshal(&params{
+		PrimaryContactID:    primaryID,
+		SecondaryContactIDs: secondaryIDs,
+		Contact:             attrs,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := c.client.newRequest(http.MethodPost, "contacts/merge", in)
+	if err != nil {
+		return err
+	}
+
+	return c.client.do(req, nil, http.StatusNoContent)
 }
