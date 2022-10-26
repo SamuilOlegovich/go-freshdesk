@@ -107,6 +107,7 @@ type ContactsClient interface {
 	HardDelete(id uint64, force bool) error
 	Restore(id uint64) error
 	ListAllContactFields() ([]*ContactField, error)
+	SearchContacts(keyword string) (contacts []*Contact, err error)
 	SendInvite(id uint64) error
 	Merge(primaryID uint64, secondaryIDs []uint64, attrs *Contact) error
 }
@@ -223,6 +224,17 @@ func (c *contactsClient) ListAllContactFields() ([]*ContactField, error) {
 	err = c.client.do(req, &res, http.StatusOK)
 
 	return res, err
+}
+
+// SearchContacts searches for a contact using their name
+func (c *contactsClient) SearchContacts(keyword string) (contacts []*Contact, err error) {
+	req, err := c.client.newRequest(http.MethodPost, fmt.Sprintf("contacts/autocomplete?term=%s", keyword), nil)
+	if err != nil {
+		return
+	}
+
+	err = c.client.do(req, &contacts, http.StatusNoContent)
+	return
 }
 
 // SendInvite used to send an activation email to an existing contact for email verification
